@@ -1,6 +1,7 @@
 #include "geometry.h"
 #include <stdexcept>
-
+#include <ccd/ccd.h>
+#include <vector>
 
 // === Point ===
 
@@ -274,10 +275,59 @@ ExtremeDirections findExtremeDirections(const vector<Point>& vectors) {
     return {min_vec, max_vec};
 }
 
-// === isZeroInConvexHull (временна€ заглушка) ===
+// === isZeroInConvexHull  ===
+
+static void ccdSupport(const void *obj, const ccd_vec3_t *dir, ccd_vec3_t *vec) {
+    const vector<Point>* points = static_cast<const vector<Point>*>(obj);
+    const vector<Point>& poly = *points;
+    
+    double maxDot = -CCD_REAL_MAX;
+    size_t bestIdx = 0;
+    
+    Point d(dir->v[0], dir->v[1]);
+    
+    for (size_t i = 0; i < poly.size(); ++i) {
+        double dot = poly[i].dot(d);
+        if (dot > maxDot) {
+            maxDot = dot;
+            bestIdx = i;
+        }
+    }
+    
+    vec->v[0] = poly[bestIdx].x;
+    vec->v[1] = poly[bestIdx].y;
+    vec->v[2] = 0.0;  
+}
 
 bool isZeroInConvexHull(const vector<Point>& vectors) {
-    // TODO: реализовать GJK или метод углов
-    // ѕока всегда возвращаем false, чтобы алгоритм не останавливалс€ раньше времени
-    return false;
+    if (vectors.empty()) return false;
+    if (vectors.size() == 1) {
+        return vectors[0].norm() < 1e-10;
+    }
+    if (vectors.size() == 2) {
+        const Point& v1 = vectors[0];
+        const Point& v2 = vectors[1];
+        
+        double cross = v1.x * v2.y - v1.y * v2.x;
+        if (std::abs(cross) < 1e-10) return false;  
+        
+        double dot = v1.dot(v2);
+        return dot < 0;  
+    }
+    
+    vector<Point> points = vectors;  
+    
+    ccd_t ccd;
+    CCD_INIT(&ccd);  
+
+    ccd.support1 = ccdSupport;  
+    ccd.support2 = ccdSupport;  
+    ccd.max_iterations = 100;    
+
+    ccd_vec3_t origin;
+    ccdVec3Set(&origin, 0, 0, 0);
+
+    int intersect = ccdGJKIntersect(&points, &origin, &ccd);
+    
+    return intersect == 1;  
 }
