@@ -1,0 +1,13 @@
+# Object files
+*.o
+*.exe
+
+# Temporary files
+*.tmp
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*~
