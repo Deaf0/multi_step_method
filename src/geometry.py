@@ -279,26 +279,6 @@ def isZeroInConvexHull(subgrads: List[Point], extreme_directions: ExtremeDirecti
     
     return extreme_directions.max_gap <= math.pi + eps
 
-
-if __name__ == '__main__':
-
-    # A = [
-    #     Point(0,0),
-    #     Point(6,0),
-    #     Point(3,5)
-    # ]
-
-    # B = [
-    #     Point(8,2),
-    #     Point(10,2),
-    #     Point(10,4),
-    #     Point(8,4)
-    # ]
-
-    # x = Point(-6, -1)
-
-    # function_value = compute_F(x, A, B) 
-    # print(f"function_value: {function_value.value}")
     
 
 

@@ -30,12 +30,7 @@ while (iter < MAX_ITER):
         best_F = function_value.value
         best_shift = geometry.Point(x.x, x.y)
 
-    print(f"Q = {Q}")
-    print(f"x = {x}, F(x) = {function_value.value}, dF(x) = {function_value.directions}\n")
-    print(f"best_F: {best_F}, best_shift: {best_shift}")
-
     extreme_directions = geometry.findExtremeDirections(function_value.directions)
-    print(f"extreme_directions: {extreme_directions}")
     Q = geometry.clipPolygon(Q, x, extreme_directions.min_angle)
     if extreme_directions.min_angle != extreme_directions.max_angle:
         Q = geometry.clipPolygon(Q, x, extreme_directions.max_angle)
@@ -59,6 +54,7 @@ while (iter < MAX_ITER):
             print("argument stopped changing")
         print(f"Best shift: ({best_shift.x}, {best_shift.y})")
         print(f"F(x) = {function_value.value}")
+        print(f"Iter number: {iter}")
         break
     
     iter += 1
