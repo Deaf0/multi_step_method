@@ -1,6 +1,5 @@
 import math
-from typing import Optional
-from typing import List, Tuple, Optional
+from typing import List
 from dataclasses import dataclass, field
 
 
@@ -9,7 +8,10 @@ class Point:
         self.x = x
         self.y = y
 
-    def __eq__(self, other):
+    def copy(self) -> 'Point':
+        return Point(self.x, self.y)
+
+    def __eq__(self, other) -> bool:
         if not isinstance(other, Point):
             return False
         
@@ -42,7 +44,6 @@ class Point:
 Polygon = List[Point]
 
 
-@dataclass
 class BoundingBox:
     min: Point
     max: Point
@@ -60,17 +61,17 @@ class BoundingBox:
 
 @dataclass
 class FunctionValue:
-    value: float = 0.0
-    directions: List[Point] = field(default_factory=list)
+    value: float = -float('inf')
+    directions: Polygon = field(default_factory=list)
 
 
 @dataclass
 class ExtremeDirections:
     min_angle: Point
     max_angle: Point
-    max_gap: float = None
+    max_gap: float = 0.0
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if not isinstance(other, ExtremeDirections):
             return False
         
@@ -116,7 +117,7 @@ def getCenter(poly: Polygon) -> Point:
     return center * (1.0 / len(poly))
 
 
-def add_direction(dirs: List[Point], g: Point, eps=1e-10):
+def add_direction(dirs: Polygon, g: Point, eps: float = 1e-10) -> None:
     for v in dirs: 
         if (v - g).norm() < eps:
             return
@@ -124,7 +125,7 @@ def add_direction(dirs: List[Point], g: Point, eps=1e-10):
 
 
 def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue: 
-    result = FunctionValue(-float('inf')) 
+    result = FunctionValue() 
     eps = 1e-10 
     
     for a in A: 
@@ -151,6 +152,9 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 if diff_norm > eps:
                     l = diff * (-1.0 / diff_norm)
                     add_direction(result.directions, l)
+                else:
+                    add_direction(result.directions, Point(1,0))
+                    add_direction(result.directions, Point(-1,0))
 
         elif abs(shortest_distance - result.value) < eps:
             for b in closest_points:
@@ -159,6 +163,9 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 if diff_norm > eps:
                     l = diff * (-1.0 / diff_norm)
                     add_direction(result.directions, l)
+                else:
+                    add_direction(result.directions, Point(1,0))
+                    add_direction(result.directions, Point(-1,0))
 
     for b in B: 
         shortest_distance = float('inf')
@@ -184,6 +191,9 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 if diff_norm > eps:
                     l = diff * (1.0 / diff_norm)
                     add_direction(result.directions, l)
+                else:
+                    add_direction(result.directions, Point(1,0))
+                    add_direction(result.directions, Point(-1,0))
 
         elif abs(shortest_distance - result.value) < eps:
             for a in closest_points:
@@ -192,11 +202,14 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 if diff_norm > eps:
                     l = diff * (1.0 / diff_norm)
                     add_direction(result.directions, l)
+                else:
+                    add_direction(result.directions, Point(1,0))
+                    add_direction(result.directions, Point(-1,0))
 
     return result
 
 
-def findExtremeDirections(subgrads):
+def findExtremeDirections(subgrads: Polygon) -> ExtremeDirections:
     if not subgrads:
         raise RuntimeError("no subgradients")
     
@@ -264,18 +277,15 @@ def clipPolygon(poly: Polygon, origin_point: Point, n: Point) -> Polygon:
     return result
 
 
-def isZeroInConvexHull(subgrads: List[Point], extreme_directions: ExtremeDirections) -> bool:
+def isZeroInConvexHull(subgrads: Polygon, extreme_directions: ExtremeDirections) -> bool:
     n = len(subgrads)
     eps = 1e-10
 
-    if n == 0:
-        return False
-    
-    if len(subgrads) == 1:
+    if n == 0 or n == 1:
         return False
     
     if len(subgrads) == 2:  
-        return (subgrads[0].dot(subgrads[1]) + 1) < eps
+        return abs(subgrads[0].dot(subgrads[1]) + 1) < eps
     
     return extreme_directions.max_gap <= math.pi + eps
 
