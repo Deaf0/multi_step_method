@@ -1,67 +1,62 @@
-import geometry
-from typing import Tuple
+import re
+import pandas as pd
+from geometry import Point
+from solver import solve
+from pathlib import Path
+from typing import List
 
 
-def solve(A: geometry.Polygon, B: geometry.Polygon, max_iter: int = 1000, eps: float = 1e-11) -> Tuple[float, geometry.Point, str]:
-    Q = geometry.initQ0(A, B)
-    x = geometry.getCenter(Q)
+def get_polygon_from_file(file: Path) -> List[Point]:
+    polygon = []
+    with file.open("r", encoding="utf-8") as f:
+        next(f, None)
 
-    best_F = float('inf')
-    best_shift = geometry.Point(0, 0)
+        for line in f:
+            line = line.strip()
+            if not line:  
+                continue
 
-    for _ in range(max_iter):
+            x, y = map(float, line.split())
+            polygon.append(Point(x, y))
 
-        function_value = geometry.compute_F(x, A, B)
+    return polygon
 
-        if (function_value.value < best_F):
-            best_F = function_value.value
-            best_shift = x.copy()
+base_dir = Path(__file__).resolve().parent.parent
+data_path = base_dir / 'data'
 
-        extreme_directions = geometry.findExtremeDirections(function_value.directions)
+df = pd.read_csv('data/metadata.csv', sep=';', index_col='path')
 
-        Q = geometry.clipPolygon(Q, x, extreme_directions.min_angle)
+if 'hausDistMultiStep' not in df.columns:
+    df['hausDistMultiStep'] = None
 
-        if extreme_directions.min_angle != extreme_directions.max_angle:
-            Q = geometry.clipPolygon(Q, x, extreme_directions.max_angle)
+for subdir in data_path.iterdir():
+    if not subdir.is_dir():
+        continue
 
-        if (not Q):
-            return best_F, best_shift, "Q empty"
+    convex_polygon = []
+    nonconvex_polygon = []
+    path_to_convex = ''
+    path_to_nonconvex = ''
+    hausdorf_dist = None
 
-        new_x = geometry.getCenter(Q)
+    for file in subdir.iterdir():
+        if file.name == f"{subdir.name}_polygon_convex.txt":
+            convex_polygon = get_polygon_from_file(file)
+            path_to_convex = f"{subdir.name}/{file.name}"
+        elif file.name == f"{subdir.name}_polygon_nonconvex.txt":
+            nonconvex_polygon = get_polygon_from_file(file)
+            path_to_nonconvex = f"{subdir.name}/{file.name}"
+    if convex_polygon and nonconvex_polygon:
+        hausdorf_dist, _, _ = solve(convex_polygon, nonconvex_polygon)
 
-        x_change = (new_x - x).norm()
-        x = new_x
+        if path_to_convex in df.index:
+            df.at[path_to_convex, 'hausDistMultiStep'] = hausdorf_dist
+            path_to_convex = ''
 
-        zero_in_hull = geometry.isZeroInConvexHull(
-            function_value.directions, 
-            extreme_directions
-        )
+        if path_to_nonconvex in df.index:
+            df.at[path_to_nonconvex, 'hausDistMultiStep'] = hausdorf_dist
+            path_to_nonconvex = ''
 
-        if zero_in_hull: 
-            return best_F, best_shift, "zero in subgradient hull"
-            
-        if x_change < eps: 
-            return best_F, best_shift, "argument stopped changing"
-    
-    return best_F, best_shift, "reach max iter"
+df.to_csv(data_path / 'metadata.csv', sep=';')
 
-
-if __name__ == "__main__":
-
-    A = [
-        geometry.Point(0,0),
-        geometry.Point(6,0),
-        geometry.Point(3,5)
-    ]
-
-    B = [
-        geometry.Point(8,2),
-        geometry.Point(10,2),
-        geometry.Point(10,4),
-        geometry.Point(8,4)
-    ]
-
-    hausdorf_dist, best_shift, stop_reason = solve(A, B)
-
-    print(f"F(x) = {hausdorf_dist}, x = ({best_shift.x}, {best_shift.y}), reason for stoppage: {stop_reason}")
 

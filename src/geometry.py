@@ -117,14 +117,14 @@ def getCenter(poly: Polygon) -> Point:
     return center * (1.0 / len(poly))
 
 
-def add_direction(dirs: Polygon, g: Point, eps: float = 1e-10) -> None:
+def addDirection(dirs: Polygon, g: Point, eps: float = 1e-10) -> None:
     for v in dirs: 
         if (v - g).norm() < eps:
             return
     dirs.append(g)
 
 
-def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue: 
+def computeF(x: Point, A: Polygon, B: Polygon) -> FunctionValue: 
     result = FunctionValue() 
     eps = 1e-10 
     
@@ -151,10 +151,10 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 diff_norm = diff.norm()
                 if diff_norm > eps:
                     l = diff * (-1.0 / diff_norm)
-                    add_direction(result.directions, l)
+                    addDirection(result.directions, l)
                 else:
-                    add_direction(result.directions, Point(1,0))
-                    add_direction(result.directions, Point(-1,0))
+                    addDirection(result.directions, Point(1,0))
+                    addDirection(result.directions, Point(-1,0))
 
         elif abs(shortest_distance - result.value) < eps:
             for b in closest_points:
@@ -162,10 +162,10 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 diff_norm = diff.norm()
                 if diff_norm > eps:
                     l = diff * (-1.0 / diff_norm)
-                    add_direction(result.directions, l)
+                    addDirection(result.directions, l)
                 else:
-                    add_direction(result.directions, Point(1,0))
-                    add_direction(result.directions, Point(-1,0))
+                    addDirection(result.directions, Point(1,0))
+                    addDirection(result.directions, Point(-1,0))
 
     for b in B: 
         shortest_distance = float('inf')
@@ -190,10 +190,10 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 diff_norm = diff.norm()
                 if diff_norm > eps:
                     l = diff * (1.0 / diff_norm)
-                    add_direction(result.directions, l)
+                    addDirection(result.directions, l)
                 else:
-                    add_direction(result.directions, Point(1,0))
-                    add_direction(result.directions, Point(-1,0))
+                    addDirection(result.directions, Point(1,0))
+                    addDirection(result.directions, Point(-1,0))
 
         elif abs(shortest_distance - result.value) < eps:
             for a in closest_points:
@@ -201,10 +201,10 @@ def compute_F(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
                 diff_norm = diff.norm()
                 if diff_norm > eps:
                     l = diff * (1.0 / diff_norm)
-                    add_direction(result.directions, l)
+                    addDirection(result.directions, l)
                 else:
-                    add_direction(result.directions, Point(1,0))
-                    add_direction(result.directions, Point(-1,0))
+                    addDirection(result.directions, Point(1,0))
+                    addDirection(result.directions, Point(-1,0))
 
     return result
 
@@ -248,7 +248,7 @@ def findExtremeDirections(subgrads: Polygon) -> ExtremeDirections:
     return ExtremeDirections(min_vec, max_vec, max_gap)
 
 
-def signedDistance(origin_point: Point, n: Point, destination_point: Point) -> float:
+def computeSignedDistance(origin_point: Point, n: Point, destination_point: Point) -> float:
     return n.dot(destination_point - origin_point)
 
 
@@ -260,8 +260,8 @@ def clipPolygon(poly: Polygon, origin_point: Point, n: Point) -> Polygon:
         curr = poly[i]
         next_point = poly[(i + 1) % size]
         
-        curr_dist = signedDistance(origin_point, n, curr)
-        next_dist = signedDistance(origin_point, n, next_point)
+        curr_dist = computeSignedDistance(origin_point, n, curr)
+        next_dist = computeSignedDistance(origin_point, n, next_point)
         
         if curr_dist <= 0:
             result.append(curr)
@@ -277,14 +277,14 @@ def clipPolygon(poly: Polygon, origin_point: Point, n: Point) -> Polygon:
     return result
 
 
-def isZeroInConvexHull(subgrads: Polygon, extreme_directions: ExtremeDirections) -> bool:
+def checkZeroInConvexHull(subgrads: Polygon, extreme_directions: ExtremeDirections) -> bool:
     n = len(subgrads)
     eps = 1e-10
 
     if n == 0 or n == 1:
         return False
     
-    if len(subgrads) == 2:  
+    if n == 2:  
         return abs(subgrads[0].dot(subgrads[1]) + 1) < eps
     
     return extreme_directions.max_gap <= math.pi + eps
