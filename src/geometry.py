@@ -2,6 +2,8 @@ import math
 from typing import List
 from dataclasses import dataclass, field
 
+import numpy as np
+
 
 class Point:
     def __init__(self, x: float = 0.0, y: float = 0.0):
@@ -111,10 +113,11 @@ def initQ0(A: Polygon, B: Polygon) -> Polygon:
 
 
 def getCenter(poly: Polygon) -> Point:
-    center = Point(0, 0)
-    for p in poly:
-        center = center + p
-    return center * (1.0 / len(poly))
+    if not poly:
+        return Point(0, 0)
+    xs = np.fromiter((p.x for p in poly), dtype=np.float64, count=len(poly))
+    ys = np.fromiter((p.y for p in poly), dtype=np.float64, count=len(poly))
+    return Point(float(xs.mean()), float(ys.mean()))
 
 
 def addDirection(dirs: Polygon, g: Point, eps: float = 1e-10) -> None:
@@ -212,38 +215,26 @@ def computeF(x: Point, A: Polygon, B: Polygon) -> FunctionValue:
 def findExtremeDirections(subgrads: Polygon) -> ExtremeDirections:
     if not subgrads:
         raise RuntimeError("no subgradients")
-    
+
     if len(subgrads) == 1:
         return ExtremeDirections(subgrads[0], subgrads[0])
 
-    angles = []
+    xs = np.fromiter((v.x for v in subgrads), dtype=np.float64, count=len(subgrads))
+    ys = np.fromiter((v.y for v in subgrads), dtype=np.float64, count=len(subgrads))
+    angle_vals = np.arctan2(ys, xs)
+    angle_vals = np.mod(angle_vals + 2.0 * math.pi, 2.0 * math.pi)
+    order = np.argsort(angle_vals, kind="mergesort")
+    sorted_angles = angle_vals[order]
 
-    for v in subgrads:
-        a = (math.atan2(v.y, v.x) + 2*math.pi) % (2*math.pi) 
-        angles.append((a, v))
+    n = len(sorted_angles)
+    gaps = np.empty(n, dtype=np.float64)
+    gaps[:-1] = sorted_angles[1:] - sorted_angles[:-1]
+    gaps[-1] = sorted_angles[0] + 2.0 * math.pi - sorted_angles[-1]
 
-    angles.sort(key=lambda x: x[0])
-
-    n = len(angles)
-
-    max_gap = -1
-    max_i = 0
-
-    for i in range(n):
-        a1 = angles[i][0]
-        a2 = angles[(i+1) % n][0]
-
-        if i == n-1:
-            a2 += 2*math.pi
-
-        gap = a2 - a1
-
-        if gap > max_gap:
-            max_gap = gap
-            max_i = i
-
-    min_vec = angles[(max_i+1) % n][1]
-    max_vec = angles[max_i][1]
+    max_i = int(np.argmax(gaps))
+    max_gap = float(gaps[max_i])
+    min_vec = subgrads[int(order[(max_i + 1) % n])]
+    max_vec = subgrads[int(order[max_i])]
 
     return ExtremeDirections(min_vec, max_vec, max_gap)
 
